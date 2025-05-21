@@ -1,142 +1,134 @@
-'use client'
+'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'next/navigation';
 
-interface FormData {
-  name: string;
-  age: number;
-  gender: string;
-  branch: string;
-  profilePic: File | null;
-}
+import { createClient } from '@supabase/supabase-js';
 
-const SignUp: React.FC = () => {
-  const [formData, setFormData] = useState<FormData>({
-    name: '',
-    age: 18,
-    gender: '',
-    branch: '',
-    profilePic: null,
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+
+const schema = z.object({
+  name: z.string().min(2, 'Name is too short'),
+  age: z.coerce.number().min(16, 'Too young'),
+  gender: z.enum(['Male', 'Female', 'Other']),
+  branch: z.string().min(2),
+  profilePic: z.any().optional(), // ✅ Now optional
+});
+
+type FormData = z.infer<typeof schema>;
+
+export default function SignUp() {
+  const router = useRouter();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'age' ? parseInt(value) : value,
-    }));
-  };
+  const [loading, setLoading] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setFormData((prev) => ({ ...prev, profilePic: file }));
-  };
+  const onSubmit = async (data: FormData) => {
+    setLoading(true);
+    let profilePicUrl = null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+    const file = data.profilePic?.[0];
+    if (file) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
 
-    // Form validation (minimal)
-    if (!formData.name || !formData.gender || !formData.branch) {
-      alert('Please fill out all required fields.');
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        alert('Error uploading image');
+        setLoading(false);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      profilePicUrl = urlData?.publicUrl;
+    }
+
+    const { error: insertError } = await supabase.from('users').insert([
+      {
+        name: data.name,
+        age: data.age,
+        gender: data.gender,
+        branch: data.branch,
+        profile_pic: profilePicUrl, // ✅ Can be null
+      },
+    ]);
+
+    if (insertError) {
+      alert('Signup failed');
+      setLoading(false);
       return;
     }
 
-    // Simulate form submission
-    const payload = new FormData();
-    payload.append('name', formData.name);
-    payload.append('age', formData.age.toString());
-    payload.append('gender', formData.gender);
-    payload.append('branch', formData.branch);
-    if (formData.profilePic) {
-      payload.append('profile_pic', formData.profilePic);
-    }
-
-    // Replace this with actual POST request to backend
-    console.log('Submitting form:', Object.fromEntries(payload.entries()));
-    alert('Signed up successfully!');
+    router.push('/');
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-pink-50">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md"
-        encType="multipart/form-data"
-      >
-        <h2 className="text-3xl font-bold text-center text-pink-600 mb-6">🎉 Join CrushRush</h2>
+      <form onSubmit={handleSubmit(onSubmit)} className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md space-y-4">
+        <h2 className="text-3xl font-bold text-center text-pink-600">🎉 Join CrushRush</h2>
 
-        <label className="block mb-4">
-          <span className="text-sm font-medium">Name</span>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-400"
-          />
-        </label>
+        <div>
+          <label className="block text-sm font-medium">Name</label>
+          <input {...register('name')} className="mt-1 w-full border rounded-lg px-4 py-2" />
+          {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
+        </div>
 
-        <label className="block mb-4">
-          <span className="text-sm font-medium">Age</span>
-          <input
-            type="number"
-            name="age"
-            value={formData.age}
-            onChange={handleChange}
-            min={0}
-            className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-400"
-          />
-        </label>
+        <div>
+          <label className="block text-sm font-medium">Age</label>
+          <input type="number" {...register('age')} className="mt-1 w-full border rounded-lg px-4 py-2" />
+          {errors.age && <p className="text-red-500 text-sm">{errors.age.message}</p>}
+        </div>
 
-        <label className="block mb-4">
-          <span className="text-sm font-medium">Gender</span>
-          <select
-            name="gender"
-            value={formData.gender}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-pink-400"
-          >
+        <div>
+          <label className="block text-sm font-medium">Gender</label>
+          <select {...register('gender')} className="mt-1 w-full border rounded-lg px-4 py-2">
             <option value="">Select</option>
             <option>Male</option>
             <option>Female</option>
             <option>Other</option>
           </select>
-        </label>
+          {errors.gender && <p className="text-red-500 text-sm">{errors.gender.message}</p>}
+        </div>
 
-        <label className="block mb-4">
-          <span className="text-sm font-medium">Branch</span>
-          <input
-            type="text"
-            name="branch"
-            value={formData.branch}
-            onChange={handleChange}
-            required
-            className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-400"
-          />
-        </label>
+        <div>
+          <label className="block text-sm font-medium">Branch</label>
+          <input {...register('branch')} className="mt-1 w-full border rounded-lg px-4 py-2" />
+          {errors.branch && <p className="text-red-500 text-sm">{errors.branch.message}</p>}
+        </div>
 
-        <label className="block mb-6">
-          <span className="text-sm font-medium">Profile Picture</span>
-          <input
-            type="file"
-            name="profile_pic"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="mt-1 block w-full text-sm text-gray-600"
-          />
-        </label>
+        <div>
+          <label className="block text-sm font-medium">Profile Picture (optional)</label>
+          <input type="file" accept="image/*" {...register('profilePic')} />
+        </div>
 
         <button
           type="submit"
+          disabled={loading}
           className="w-full py-3 bg-pink-600 text-white font-bold rounded-xl hover:bg-pink-700 transition"
         >
-          Sign Up 🚀
+          {loading ? 'Signing Up...' : 'Sign Up 🚀'}
         </button>
       </form>
     </div>
   );
-};
-
-export default SignUp;
+}
