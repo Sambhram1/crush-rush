@@ -37,13 +37,13 @@ export default function Home() {
             emoji="👀"
             href="/whos-watching-you"
           />
-          <FeatureCard title="Leaderboards" description="See who's crushing it" emoji="🏆" href="/leaderboards" />
+          {/* <FeatureCard title="Leaderboards" description="See who's crushing it" emoji="🏆" href="/leaderboards" />
           <FeatureCard
             title="Dark Mode Fridays"
             description="Special night events"
             emoji="🌙"
             href="/dark-mode-fridays"
-          />
+          /> */}
           <FeatureCard title="WTF Mode" description="Chaotic matchmaking" emoji="🤪" href="/wtf-mode" />
           <FeatureCard title="Roast or Toast" description="Give love or laughs" emoji="🔥" href="/roast-or-toast" />
           <FeatureCard
