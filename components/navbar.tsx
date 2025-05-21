@@ -76,9 +76,9 @@ function NavLinks() {
       <Link href="/crush-roulette" className="text-sm font-medium hover:text-[#20C997] transition-colors">
         Crush Roulette
       </Link>
-      <Link href="/leaderboards" className="text-sm font-medium hover:text-[#20C997] transition-colors">
+      {/* <Link href="/leaderboards" className="text-sm font-medium hover:text-[#20C997] transition-colors">
         Leaderboards
-      </Link>
+      </Link> */}
       <Link href="/whos-watching-you" className="text-sm font-medium hover:text-[#20C997] transition-colors">
         Who's Watching
       </Link>
