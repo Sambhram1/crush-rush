@@ -13,7 +13,7 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="bg-[#FFF5E1] border-b border-[#FFC1CC]/30 sticky top-0 z-50 backdrop-blur-sm">
+    <nav className="bg-[#FFFFFF] border-b border-[#FFC1CC]/30 sticky top-0 z-50 backdrop-blur-sm">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <Link href="/" className="flex items-center space-x-2">
