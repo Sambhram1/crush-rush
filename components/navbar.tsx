@@ -25,10 +25,13 @@ export default function Navbar() {
           <div className="hidden md:flex items-center space-x-4">
             <NavLinks />
             <div className="flex items-center ml-4 space-x-2">
-              <Button className="bg-[#20C997] hover:bg-[#1DB386] text-white btn-pulse">
+              <Link href="/signup">
+                <Button className="bg-[#20C997] hover:bg-[#1DB386] text-white btn-pulse">
                 <Sparkles className="mr-2 h-4 w-4" />
                 Sign Up
               </Button>
+              </Link>
+              
               <div className="flex items-center bg-[#FF6F61]/20 px-3 py-1 rounded-full">
                 <Coins className="h-4 w-4 text-[#FF6F61] mr-1" />
                 <span className="text-sm font-medium">120</span>
