@@ -1,11 +1,102 @@
+'use client'
+import { createClient } from '@supabase/supabase-js'
+import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { ThumbsUp, ArrowRight, Trophy, Crown } from 'lucide-react'
 import PageHeader from "@/components/page-header"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Trophy, ArrowRight, ThumbsUp, Crown } from "lucide-react"
+
+export const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+type Profile = {
+  id: string
+  name: string
+  age: number
+  major: string
+  distance: string
+  image_url: string | null
+  badges?: string[] | null
+  votes: number
+  wins: number
+  losses: number
+  win_rate?: number
+}
 
 export default function ViewersPick() {
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [leaders, setLeaders] = useState<Profile[]>([])
+  const [loading, setLoading] = useState(false)
+  const [imageError, setImageError] = useState<Record<string, boolean>>({})
+
+  const fetchProfiles = async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('votes', { ascending: false })
+
+      if (error) throw error
+      if (data) {
+        const processedData = data.map(profile => ({
+          ...profile,
+          win_rate: profile.wins > 0 ? Math.round((profile.wins / (profile.wins + profile.losses)) * 100) : 0
+        }))
+        setProfiles(shuffleArray(processedData).slice(0, 2))
+        setLeaders(processedData.slice(0, 3))
+      }
+    } catch (error) {
+      console.error('Error fetching profiles:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const vote = async (winner: Profile, loser: Profile) => {
+    try {
+      await Promise.all([
+        supabase
+          .from('users')
+          .update({ 
+            votes: winner.votes + 1, 
+            wins: winner.wins + 1 
+          })
+          .eq('id', winner.id),
+        supabase
+          .from('users')
+          .update({ losses: loser.losses + 1 })
+          .eq('id', loser.id)
+      ])
+      fetchProfiles()
+    } catch (error) {
+      console.error('Error voting:', error)
+    }
+  }
+
+  const handleImageError = (id: string) => {
+    setImageError(prev => ({ ...prev, [id]: true }))
+  }
+
+  useEffect(() => {
+    fetchProfiles()
+  }, [])
+
+  if (loading) return (
+    <div className="max-w-4xl mx-auto">
+      <PageHeader
+        title="Viewer's Pick"
+        description="Classic 'Who's Hotter?' profile showdown. Vote for your favorites and see who tops the leaderboard!"
+        emoji="🥵"
+      />
+      <div className="flex justify-center items-center h-64">Loading face-off...</div>
+    </div>
+  )
+
   return (
     <div className="max-w-4xl mx-auto">
       <PageHeader
@@ -15,57 +106,61 @@ export default function ViewersPick() {
       />
 
       <div className="grid md:grid-cols-2 gap-8 mb-8">
-        <Card className="bg-[#FFC1CC] p-6 relative">
-          <div className="absolute top-0 right-0 bg-[#FF6F61] text-white px-3 py-1 rounded-bl-lg">Profile A</div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-full aspect-square bg-gray-200 rounded-lg overflow-hidden mb-4">
-              <img src="/placeholder.svg?height=300&width=300" alt="Profile A" className="w-full h-full object-cover" />
+        {profiles.map((profile, i) => (
+          <Card key={profile.id} className="bg-[#FFC1CC] p-6 relative">
+            <div className="absolute top-0 right-0 bg-[#FF6F61] text-white px-3 py-1 rounded-bl-lg">
+              Profile {i === 0 ? 'A' : 'B'}
             </div>
 
-            <h3 className="text-xl font-bold mb-1">Jordan, 22</h3>
-            <p className="text-sm mb-4">Film Studies • 3 miles away</p>
+            <div className="flex flex-col items-center">
+              <div className="w-full aspect-square bg-gray-200 rounded-lg overflow-hidden mb-4">
+                {profile.image_url && !imageError[profile.id] ? (
+                  <img 
+                    src={profile.image_url} 
+                    alt={profile.name} 
+                    className="w-full h-full object-cover"
+                    onError={() => handleImageError(profile.id)}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-300">
+                    <span className="text-gray-500">No Image</span>
+                  </div>
+                )}
+              </div>
 
-            <div className="flex flex-wrap gap-2 mb-6 justify-center">
-              <Badge className="bg-[#20C997]/20 text-[#20C997] hover:bg-[#20C997]/30">Photography</Badge>
-              <Badge className="bg-[#20C997]/20 text-[#20C997] hover:bg-[#20C997]/30">Hiking</Badge>
-              <Badge className="bg-[#20C997]/20 text-[#20C997] hover:bg-[#20C997]/30">Vinyl Records</Badge>
+              <h3 className="text-xl font-bold mb-1">
+                {profile.name}, {profile.age}
+              </h3>
+              <p className="text-sm mb-4">
+                {profile.major} • {profile.distance} away
+              </p>
+
+              <div className="flex flex-wrap gap-2 mb-6 justify-center">
+                {(profile.badges || []).map((badge, i) => (
+                  <Badge key={i} className="bg-[#20C997]/20 text-[#20C997] hover:bg-[#20C997]/30">
+                    {badge}
+                  </Badge>
+                ))}
+              </div>
+
+              <Button 
+                className="w-full bg-[#20C997] hover:bg-[#1DB386] btn-pulse"
+                onClick={() => vote(profile, profiles.find((p) => p.id !== profile.id)!)}
+              >
+                <ThumbsUp className="h-5 w-5 mr-2" />
+                Vote for {profile.name.split(' ')[0]}
+              </Button>
             </div>
-
-            <Button className="w-full bg-[#20C997] hover:bg-[#1DB386] btn-pulse">
-              <ThumbsUp className="h-5 w-5 mr-2" />
-              Vote for Jordan
-            </Button>
-          </div>
-        </Card>
-
-        <Card className="bg-[#FFC1CC] p-6 relative">
-          <div className="absolute top-0 right-0 bg-[#FF6F61] text-white px-3 py-1 rounded-bl-lg">Profile B</div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-full aspect-square bg-gray-200 rounded-lg overflow-hidden mb-4">
-              <img src="/placeholder.svg?height=300&width=300" alt="Profile B" className="w-full h-full object-cover" />
-            </div>
-
-            <h3 className="text-xl font-bold mb-1">Taylor, 21</h3>
-            <p className="text-sm mb-4">Computer Science • 5 miles away</p>
-
-            <div className="flex flex-wrap gap-2 mb-6 justify-center">
-              <Badge className="bg-[#20C997]/20 text-[#20C997] hover:bg-[#20C997]/30">Gaming</Badge>
-              <Badge className="bg-[#20C997]/20 text-[#20C997] hover:bg-[#20C997]/30">Coffee</Badge>
-              <Badge className="bg-[#20C997]/20 text-[#20C997] hover:bg-[#20C997]/30">Rock Climbing</Badge>
-            </div>
-
-            <Button className="w-full bg-[#20C997] hover:bg-[#1DB386] btn-pulse">
-              <ThumbsUp className="h-5 w-5 mr-2" />
-              Vote for Taylor
-            </Button>
-          </div>
-        </Card>
+          </Card>
+        ))}
       </div>
 
       <div className="flex justify-center mb-8">
-        <Button variant="outline" className="border-[#FF6F61] text-[#FF6F61] hover:bg-[#FF6F61]/10">
+        <Button 
+          variant="outline" 
+          className="border-[#FF6F61] text-[#FF6F61] hover:bg-[#FF6F61]/10"
+          onClick={fetchProfiles}
+        >
           <ArrowRight className="h-5 w-5 mr-2" />
           Skip to Next Matchup
         </Button>
@@ -78,64 +173,38 @@ export default function ViewersPick() {
 
       <Card className="p-6 glass-effect mb-8">
         <div className="space-y-4">
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
-              <img src="/placeholder.svg?height=40&width=40" alt="Top profile" className="w-full h-full object-cover" />
-            </div>
+          {leaders.map((leader, index) => (
+            <div key={leader.id}>
+              <div className="flex items-center mb-1">
+                <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
+                  {leader.image_url ? (
+                    <img 
+                      src={leader.image_url} 
+                      alt={leader.name} 
+                      className="w-full h-full object-cover"
+                      onError={() => handleImageError(leader.id)}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-300">
+                      <span className="text-gray-500 text-xs">No Image</span>
+                    </div>
+                  )}
+                </div>
 
-            <div className="flex-1">
-              <div className="flex items-center">
-                <h4 className="font-bold">Morgan K.</h4>
-                <Crown className="h-4 w-4 text-[#FF6F61] ml-2" />
+                <div className="flex-1">
+                  <div className="flex items-center">
+                    <h4 className="font-bold">{leader.name}</h4>
+                    {index === 0 && <Crown className="h-4 w-4 text-[#FF6F61] ml-2" />}
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Win rate: {leader.win_rate}%</span>
+                    <span className="text-sm font-medium">{leader.votes} votes</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Win rate: 87%</span>
-                <span className="text-sm font-medium">428 votes</span>
-              </div>
+              <Progress value={leader.win_rate || 0} className="h-2" />
             </div>
-          </div>
-
-          <Progress value={87} className="h-2" />
-
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
-              <img
-                src="/placeholder.svg?height=40&width=40"
-                alt="Second profile"
-                className="w-full h-full object-cover"
-              />
-            </div>
-
-            <div className="flex-1">
-              <h4 className="font-bold">Riley J.</h4>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Win rate: 82%</span>
-                <span className="text-sm font-medium">392 votes</span>
-              </div>
-            </div>
-          </div>
-
-          <Progress value={82} className="h-2" />
-
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
-              <img
-                src="/placeholder.svg?height=40&width=40"
-                alt="Third profile"
-                className="w-full h-full object-cover"
-              />
-            </div>
-
-            <div className="flex-1">
-              <h4 className="font-bold">Casey T.</h4>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">Win rate: 76%</span>
-                <span className="text-sm font-medium">356 votes</span>
-              </div>
-            </div>
-          </div>
-
-          <Progress value={76} className="h-2" />
+          ))}
         </div>
       </Card>
 
@@ -160,4 +229,8 @@ export default function ViewersPick() {
       </div>
     </div>
   )
+}
+
+function shuffleArray<T>(array: T[]): T[] {
+  return [...array].sort(() => Math.random() - 0.5)
 }

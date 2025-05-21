@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Send, Lock, Coins } from "lucide-react"
+import SignUp from "../signup/page"
+import { useRouter } from 'next/navigation';
+
 
 // Create Supabase client inline
 const supabase = createClient(
@@ -15,6 +18,7 @@ const supabase = createClient(
 )
 
 export default function ConfessionWall() {
+  const router = useRouter();
   const [content, setContent] = useState("")
   const [confessions, setConfessions] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -29,6 +33,9 @@ export default function ConfessionWall() {
   }
 
   const postConfession = async () => {
+    if(!SignUp){
+      router.push('/signup');
+    }
     if (!content.trim()) return
     
     setIsSubmitting(true)
