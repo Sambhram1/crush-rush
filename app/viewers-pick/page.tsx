@@ -91,7 +91,7 @@ export default function ViewersPick() {
     return (
       <div className="max-w-4xl mx-auto">
         <PageHeader
-          title="Viewer's Pick"
+          title="Face-off-pool"
           description="Classic 'Who's Hotter?' profile showdown. Vote for your favorites and see who tops the leaderboard!"
           emoji="🥵"
         />
@@ -103,7 +103,7 @@ export default function ViewersPick() {
   return (
     <div className="max-w-4xl mx-auto">
       <PageHeader
-        title="Viewer's Pick"
+        title="Face-off-pool"
         description="Classic 'Who's Hotter?' profile showdown. Vote for your favorites and see who tops the leaderboard!"
         emoji="🥵"
       />
