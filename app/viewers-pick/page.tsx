@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { ThumbsUp, ArrowRight, Trophy, Crown } from 'lucide-react'
-import PageHeader from "@/components/page-header"
+import PageHeader from '@/components/page-header'
 
 export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,13 +14,13 @@ export const supabase = createClient(
 )
 
 type Profile = {
-  id: string
+  id: number
   name: string
   age: number
-  major: string
-  distance: string
-  image_url: string | null
-  badges?: string[] | null
+  gender: 'Male' | 'Female' | 'Other'
+  branch: string
+  profile_pic: string | null
+  created_at: string
   votes: number
   wins: number
   losses: number
@@ -31,7 +31,10 @@ export default function ViewersPick() {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [leaders, setLeaders] = useState<Profile[]>([])
   const [loading, setLoading] = useState(false)
-  const [imageError, setImageError] = useState<Record<string, boolean>>({})
+  const [imageError, setImageError] = useState<Record<number, boolean>>({})
+
+ const generatePublicUrl = (url: string | null) => url || undefined
+
 
   const fetchProfiles = async () => {
     setLoading(true)
@@ -45,6 +48,7 @@ export default function ViewersPick() {
       if (data) {
         const processedData = data.map(profile => ({
           ...profile,
+          profile_pic: generatePublicUrl(profile.profile_pic),
           win_rate: profile.wins > 0 ? Math.round((profile.wins / (profile.wins + profile.losses)) * 100) : 0
         }))
         setProfiles(shuffleArray(processedData).slice(0, 2))
@@ -62,10 +66,7 @@ export default function ViewersPick() {
       await Promise.all([
         supabase
           .from('users')
-          .update({ 
-            votes: winner.votes + 1, 
-            wins: winner.wins + 1 
-          })
+          .update({ votes: winner.votes + 1, wins: winner.wins + 1 })
           .eq('id', winner.id),
         supabase
           .from('users')
@@ -78,7 +79,7 @@ export default function ViewersPick() {
     }
   }
 
-  const handleImageError = (id: string) => {
+  const handleImageError = (id: number) => {
     setImageError(prev => ({ ...prev, [id]: true }))
   }
 
@@ -86,16 +87,18 @@ export default function ViewersPick() {
     fetchProfiles()
   }, [])
 
-  if (loading) return (
-    <div className="max-w-4xl mx-auto">
-      <PageHeader
-        title="Viewer's Pick"
-        description="Classic 'Who's Hotter?' profile showdown. Vote for your favorites and see who tops the leaderboard!"
-        emoji="🥵"
-      />
-      <div className="flex justify-center items-center h-64">Loading face-off...</div>
-    </div>
-  )
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <PageHeader
+          title="Viewer's Pick"
+          description="Classic 'Who's Hotter?' profile showdown. Vote for your favorites and see who tops the leaderboard!"
+          emoji="🥵"
+        />
+        <div className="flex justify-center items-center h-64">Loading face-off...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -114,13 +117,13 @@ export default function ViewersPick() {
 
             <div className="flex flex-col items-center">
               <div className="w-full aspect-square bg-gray-200 rounded-lg overflow-hidden mb-4">
-                {profile.image_url && !imageError[profile.id] ? (
-                  <img 
-                    src={profile.image_url} 
-                    alt={profile.name} 
-                    className="w-full h-full object-cover"
-                    onError={() => handleImageError(profile.id)}
-                  />
+                {profile.profile_pic && !imageError[profile.id] ? (
+                 <img src={generatePublicUrl(profile.profile_pic)} 
+                      alt={profile.name} 
+                      className="w-full h-full object-cover"
+                      onError={() => handleImageError(profile.id)}
+                    />
+
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gray-300">
                     <span className="text-gray-500">No Image</span>
@@ -132,20 +135,12 @@ export default function ViewersPick() {
                 {profile.name}, {profile.age}
               </h3>
               <p className="text-sm mb-4">
-                {profile.major} • {profile.distance} away
+                {profile.branch} • {profile.gender}
               </p>
 
-              <div className="flex flex-wrap gap-2 mb-6 justify-center">
-                {(profile.badges || []).map((badge, i) => (
-                  <Badge key={i} className="bg-[#20C997]/20 text-[#20C997] hover:bg-[#20C997]/30">
-                    {badge}
-                  </Badge>
-                ))}
-              </div>
-
-              <Button 
+              <Button
                 className="w-full bg-[#20C997] hover:bg-[#1DB386] btn-pulse"
-                onClick={() => vote(profile, profiles.find((p) => p.id !== profile.id)!)}
+                onClick={() => vote(profile, profiles.find(p => p.id !== profile.id)!)}
               >
                 <ThumbsUp className="h-5 w-5 mr-2" />
                 Vote for {profile.name.split(' ')[0]}
@@ -156,8 +151,8 @@ export default function ViewersPick() {
       </div>
 
       <div className="flex justify-center mb-8">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="border-[#FF6F61] text-[#FF6F61] hover:bg-[#FF6F61]/10"
           onClick={fetchProfiles}
         >
@@ -177,10 +172,10 @@ export default function ViewersPick() {
             <div key={leader.id}>
               <div className="flex items-center mb-1">
                 <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
-                  {leader.image_url ? (
-                    <img 
-                      src={leader.image_url} 
-                      alt={leader.name} 
+                  {leader.profile_pic && !imageError[leader.id] ? (
+                    <img
+                      src={leader.profile_pic}
+                      alt={leader.name}
                       className="w-full h-full object-cover"
                       onError={() => handleImageError(leader.id)}
                     />

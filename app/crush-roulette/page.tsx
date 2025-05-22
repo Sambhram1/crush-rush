@@ -1,19 +1,18 @@
 "use client"
 
 import { useEffect, useState } from "react"
-
-
 import PageHeader from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Shuffle, Heart, X } from "lucide-react"
 import { createClient } from '@supabase/supabase-js'
+
 type UserProfile = {
   id: string
   name: string
   age: number
-  avatar_url: string
+  avatar_url: string // This is the path in the "profile_pic" bucket
   branch: string
   upvotes: number
   interests: string[]
@@ -25,24 +24,39 @@ export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-
 export default function CrushRoulette() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
   const fetchRandomProfile = async (excludeId?: string) => {
     const { data, error } = await supabase
       .from("users")
       .select("*")
       .neq("id", excludeId || "")
-      .order("RANDOM", { ascending: true }) // get a random user
+      .order("RANDOM", { ascending: true }) // Random user
       .limit(1)
 
     if (error) {
       console.error("Supabase fetch error:", error)
     } else if (data && data.length > 0) {
-      setProfile(data[0])
+      const user = data[0]
+      setProfile(user)
+      fetchProfilePicture(user.profile_pic)
     }
+  }
+
+  const fetchProfilePicture = (path: string) => {
+    if (!path) {
+      setAvatarUrl(null)
+      return
+    }
+
+    const { data } = supabase
+      .storage
+      .from("profile_pic")
+      .getPublicUrl(path)
+
+    setAvatarUrl(data?.publicUrl || null)
   }
 
   useEffect(() => {
@@ -81,9 +95,12 @@ export default function CrushRoulette() {
             <div className="flex flex-col items-center">
               <div className="w-32 h-32 rounded-full bg-gray-200 mb-4 overflow-hidden">
                 <img
-                  src={profile.avatar_url || "/placeholder.svg?height=128&width=128"}
-                  alt="Profile"
+                  src={avatarUrl || "/placeholder.svg?height=128&width=128"}
+                  alt={`${profile.name}'s profile`}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/placeholder.svg?height=128&width=128"
+                  }}
                 />
               </div>
 
