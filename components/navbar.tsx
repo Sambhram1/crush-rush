@@ -82,7 +82,7 @@ function NavLinks() {
       {/* <Link href="/leaderboards" className="text-sm font-medium hover:text-[#20C997] transition-colors">
         Leaderboards
       </Link> */}
-      <Link href="/Face-off-pool" className="text-sm font-medium hover:text-[#20C997] transition-colors">
+      <Link href="/viewers-pick" className="text-sm font-medium hover:text-[#20C997] transition-colors">
         Face-off-pool
       </Link>
     </>
